@@ -282,3 +282,93 @@ def analyse_command(args):
     result = analyse_neighbourhoods(prices, names, edges, args.layers)
     result.to_csv(args.output_dir / "neighbour_analysis.csv", index=False)
     print(f"Wrote {len(result):,} sector/layer rows", flush=True)
+
+
+def select_sectors(analysis, layer=2, above=0.20, min_sales=20, min_percentile=0, max_percentile=100):
+    from decimal import Decimal
+
+    if layer not in set(analysis.layer):
+        raise ValueError(f"Layer {layer} has not been analysed; run analyse --layers {layer}")
+    if min_percentile > max_percentile:
+        raise ValueError("--min-percentile cannot exceed --max-percentile")
+    result = analysis.loc[
+        analysis.layer.eq(layer) & analysis.transaction_count.ge(min_sales)
+        & analysis.ew_percentile.between(min_percentile, max_percentile)
+        & analysis.median_price.notna() & analysis.neighbourhood_median.gt(0)
+    ].copy()
+    # Decimal avoids admitting exact-threshold ties through binary float rounding.
+    factor = Decimal(1) + Decimal(str(above))
+    keep = [Decimal(str(p)) > Decimal(str(n)) * factor
+            for p, n in zip(result.median_price, result.neighbourhood_median)]
+    return result.loc[pd.Series(keep, index=result.index, dtype=bool)].sort_values(
+        ["pct_above_neighbourhood", "sector"], ascending=[False, True]).reset_index(drop=True)
+
+
+def select_command(args):
+    analysis = pd.read_csv(args.output_dir / "neighbour_analysis.csv")
+    result = select_sectors(analysis, args.layer, args.above, args.min_sales,
+                            args.min_percentile, args.max_percentile)
+    result.to_csv(args.output_dir / "selected.csv", index=False)
+    print(f"Wrote {len(result):,} sectors to {args.output_dir / 'selected.csv'}", flush=True)
+
+
+def positive_int(value):
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return number
+
+
+def finite_number(value):
+    import math
+
+    number = float(value)
+    if not math.isfinite(number):
+        raise argparse.ArgumentTypeError("must be finite")
+    return number
+
+
+def percentile(value):
+    number = finite_number(value)
+    if not 0 <= number <= 100:
+        raise argparse.ArgumentTypeError("must be between 0 and 100")
+    return number
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    for name, function in [("prices", prices_command), ("geography", geography_command),
+                           ("analyse", analyse_command), ("select", select_command)]:
+        sub = commands.add_parser(name)
+        sub.add_argument("--data-dir", type=Path, default=Path("data"))
+        sub.add_argument("--output-dir", type=Path, default=Path("output"))
+        sub.set_defaults(function=function)
+        if name == "prices":
+            sub.add_argument("--years", type=positive_int, nargs="+", default=[2023, 2024, 2025])
+            sub.add_argument("--min-sales", type=positive_int, default=20,
+                             help="flag counts below this threshold; retain observed prices")
+        elif name == "geography":
+            sub.add_argument("--oa-file", type=Path, help="optional local ONS polygon file/archive")
+            sub.add_argument("--lookup-file", type=Path, help="optional local ONS lookup CSV")
+        elif name == "analyse":
+            sub.add_argument("--layers", type=positive_int, nargs="+", default=[1, 2, 3])
+        else:
+            sub.add_argument("--layer", type=positive_int, default=2)
+            sub.add_argument("--above", type=finite_number, default=0.20,
+                             help="strict fractional premium, e.g. 0.20 means more than 20%%")
+            sub.add_argument("--min-sales", type=positive_int, default=20)
+            sub.add_argument("--min-percentile", type=percentile, default=0)
+            sub.add_argument("--max-percentile", type=percentile, default=100)
+    args = parser.parse_args(argv)
+    if args.command == "prices" and any(y < 1995 or y > datetime.now().year for y in args.years):
+        parser.error("years must be between 1995 and the current year")
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        args.function(args)
+    except (ValueError, OSError, requests.RequestException) as error:
+        parser.exit(1, f"Error: {error}\n")
+
+
+if __name__ == "__main__":
+    main()
