@@ -60,3 +60,28 @@ def test_failed_download_does_not_poison_cache(tmp_path, monkeypatch):
         wealth.download("https://example.test/data", path)
     assert not path.exists()
     assert not path.with_suffix(".csv.part").exists()
+
+
+def test_price_statistics_ties_and_sparse_sector():
+    sales = pd.DataFrame({"sector": ["E16 1"] * 4 + ["E16 2", "E16 3"],
+                          "price": [100, 200, 300, 400, 250, 1000]})
+    result = wealth.aggregate_prices(sales, min_sales=3).set_index("sector")
+    row = result.loc["E16 1"]
+    assert row.transaction_count == 4
+    assert row.median_price == row.mean_price == 250
+    assert row.p25_price == 175
+    assert row.p75_price == 325
+    assert row.ew_percentile == 50
+    assert result.loc["E16 2", "ew_percentile"] == 50
+    assert result.loc["E16 3", "ew_percentile"] == 100
+    assert not row.low_transaction_count
+    assert result.loc["E16 2", "low_transaction_count"]
+    assert result.loc["E16 2", "median_price"] == 250
+    assert result.min_sales_threshold.eq(3).all()
+
+
+def test_reject_empty_eligible_sales(tmp_path):
+    path = tmp_path / "prices.csv"
+    write_ppd(path, [{"category": "B"}])
+    with pytest.raises(ValueError, match="No qualifying"):
+        wealth.read_transactions([path], [2023])
