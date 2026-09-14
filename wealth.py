@@ -128,3 +128,68 @@ def prices_command(args):
         "years": years, "min_sales": args.min_sales, "sectors": len(result), **audit,
     }, indent=2), encoding="utf-8")
     print(f"Wrote {len(result):,} sectors to {args.output_dir / 'sector_wealth.csv'}")
+
+
+OA_URL = "https://open-geography-portalx-ons.hub.arcgis.com/api/download/v1/items/6beafcfd9b9c4c9993a06b6b199d7e6d/shapefile?layers=0"
+LOOKUP_URL = "https://open-geography-portalx-ons.hub.arcgis.com/api/download/v1/items/cf826bd3d29947ef9dcda7cd9753f7a8/csv?layers=0"
+
+
+def normalize_sector(value):
+    if not isinstance(value, str):
+        return None
+    match = SECTOR.fullmatch(value.strip().upper())
+    return f"{match[1]} {match[2]}" if match else None
+
+
+def dissolve_sectors(areas, lookup):
+    """Validate OA coverage before dissolving; never silently drop an OA."""
+    areas = areas.rename(columns={c: c.upper() for c in areas.columns if c != "geometry"})
+    lookup = lookup.rename(columns=str.upper)
+    sector_column = next((c for c in ["PCDS21CD", "PCDS"] if c in lookup), None)
+    if "OA21CD" not in areas or "OA21CD" not in lookup or sector_column is None:
+        raise ValueError("Expected OA21CD and PCDS21CD (or PCDS) source fields")
+    if areas.crs is None:
+        raise ValueError("Output Area polygons must declare a CRS")
+    if areas.OA21CD.isna().any() or lookup.OA21CD.isna().any():
+        raise ValueError("Missing OA codes")
+    if areas.OA21CD.duplicated().any() or lookup.OA21CD.duplicated().any():
+        raise ValueError("Duplicate OA codes in boundaries or lookup")
+    if not areas.OA21CD.str.match(r"^[EW][0-9]{8}$").all():
+        raise ValueError("Expected only England/Wales Output Areas")
+    if set(areas.OA21CD) != set(lookup.OA21CD):
+        raise ValueError("OA coverage differs between boundaries and lookup")
+    lookup = lookup[["OA21CD", sector_column]].copy()
+    lookup["sector"] = lookup[sector_column].map(normalize_sector)
+    if lookup.sector.isna().any():
+        bad = lookup.loc[lookup.sector.isna(), sector_column].unique()[:10]
+        raise ValueError(f"Invalid postcode sectors in lookup: {bad}")
+    areas = areas[["OA21CD", "geometry"]].to_crs(27700)
+
+    if areas.geometry.isna().any() or areas.geometry.is_empty.any():
+        raise ValueError("Missing or empty OA polygons")
+    invalid = ~areas.geometry.is_valid
+    if invalid.any():
+        print(f"Repairing {invalid.sum():,} invalid OA geometries", flush=True)
+        areas.loc[invalid, "geometry"] = areas.loc[invalid, "geometry"].make_valid()
+    if not areas.geom_type.isin(["Polygon", "MultiPolygon"]).all():
+        raise ValueError("OA geometries must be polygonal after repair")
+    joined = areas.merge(lookup[["OA21CD", "sector"]], on="OA21CD", validate="one_to_one")
+    print(f"Dissolving {len(joined):,} Output Areas into sectors", flush=True)
+    sectors = joined[["sector", "geometry"]].dissolve(by="sector", as_index=False)
+    if not sectors.geometry.is_valid.all():
+        raise ValueError("Invalid dissolved sector polygons")
+    return sectors.sort_values("sector").reset_index(drop=True)
+
+
+def geography_command(args):
+    import geopandas as gpd
+
+    oa_path = args.oa_file or download(OA_URL, args.data_dir / "oa21_ew_bgc_v2.zip")
+    lookup_path = args.lookup_file or download(LOOKUP_URL, args.data_dir / "oa21_pcds21.csv")
+    print(f"Reading Output Area polygons from {oa_path}", flush=True)
+    areas = gpd.read_file(oa_path)
+    lookup = pd.read_csv(lookup_path, dtype=str)
+    sectors = dissolve_sectors(areas, lookup)
+    sectors.to_crs(4326).to_file(args.output_dir / "sectors.geojson", driver="GeoJSON")
+    print(f"Wrote {len(sectors):,} sector polygons", flush=True)
+    return sectors
