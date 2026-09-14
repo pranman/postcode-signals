@@ -104,3 +104,27 @@ def read_transactions(paths, years):
     if sales.empty:
         raise ValueError("No qualifying residential transactions in the requested years")
     return sales, audit
+
+
+def aggregate_prices(sales, min_sales=20):
+    """Keep all observed sectors; rank sector medians equally across E&W."""
+    grouped = sales.groupby("sector").price
+    result = grouped.agg(transaction_count="count", median_price="median", mean_price="mean")
+    result["p25_price"] = grouped.quantile(0.25)
+    result["p75_price"] = grouped.quantile(0.75)
+    result["ew_percentile"] = result.median_price.rank(method="average", pct=True) * 100
+    result["low_transaction_count"] = result.transaction_count.lt(min_sales)
+    result["min_sales_threshold"] = min_sales
+    return result.reset_index()
+
+
+def prices_command(args):
+    years = sorted(set(args.years))
+    paths = [download(PRICE_URL.format(year=y), args.data_dir / f"pp-{y}.csv") for y in years]
+    sales, audit = read_transactions(paths, years)
+    result = aggregate_prices(sales, args.min_sales)
+    result.to_csv(args.output_dir / "sector_wealth.csv", index=False)
+    (args.output_dir / "prices_run.json").write_text(json.dumps({
+        "years": years, "min_sales": args.min_sales, "sectors": len(result), **audit,
+    }, indent=2), encoding="utf-8")
+    print(f"Wrote {len(result):,} sectors to {args.output_dir / 'sector_wealth.csv'}")
