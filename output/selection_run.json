@@ -1,0 +1,8 @@
+{
+  "layer": 2,
+  "above": 0.2,
+  "min_sales": 1,
+  "min_percentile": 0,
+  "max_percentile": 100,
+  "selected_sectors": 1607
+}

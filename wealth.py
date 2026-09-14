@@ -3,7 +3,6 @@
 import argparse
 import json
 import re
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -309,6 +308,11 @@ def select_command(args):
     result = select_sectors(analysis, args.layer, args.above, args.min_sales,
                             args.min_percentile, args.max_percentile)
     result.to_csv(args.output_dir / "selected.csv", index=False)
+    (args.output_dir / "selection_run.json").write_text(json.dumps({
+        "layer": args.layer, "above": args.above, "min_sales": args.min_sales,
+        "min_percentile": args.min_percentile, "max_percentile": args.max_percentile,
+        "selected_sectors": len(result),
+    }, indent=2), encoding="utf-8")
     print(f"Wrote {len(result):,} sectors to {args.output_dir / 'selected.csv'}", flush=True)
 
 

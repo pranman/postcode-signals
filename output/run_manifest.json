@@ -1,0 +1,139 @@
+{
+  "generated_at": "2026-09-14T11:04:44.257878+00:00",
+  "commands": [
+    "python wealth.py prices --years 2023 2024 2025 --min-sales 20",
+    "python wealth.py geography",
+    "python wealth.py analyse --layers 1 2 3",
+    "python wealth.py select --layer 2 --above 0.20 --min-sales 1"
+  ],
+  "code_sha256": "66fc9eb14924698b7ed8087a08a7254b833f2a639c392a2167dda334a26534bb",
+  "sources": [
+    {
+      "url": "https://open-geography-portalx-ons.hub.arcgis.com/api/download/v1/items/cf826bd3d29947ef9dcda7cd9753f7a8/csv?layers=0",
+      "downloaded_at": "2026-09-14T10:53:23.744788+00:00",
+      "bytes": 4499463,
+      "last_modified": "Thu, 25 Jun 2026 05:47:30 GMT",
+      "etag": "\"0x8DED27D3F08D0FB\"",
+      "path": "data/oa21_pcds21.csv",
+      "sha256": "ca5eab887a58eb796d81280ce9f204c35371d1c032dd817c6ab6a10346998d28"
+    },
+    {
+      "url": "https://price-paid-data.publicdata.landregistry.gov.uk/pp-2023.csv",
+      "downloaded_at": "2026-09-14T10:51:35.303364+00:00",
+      "bytes": 150324812,
+      "last_modified": "Fri, 28 Aug 2026 05:12:14 GMT",
+      "etag": "\"9df8cfb0afd329fdedd60226e3144ec5-18\"",
+      "path": "data/pp-2023.csv",
+      "sha256": "b5df7249b00201fe0a8d9ce42aabd1526a6a9ca79d2cd66eefd9d4a9f3a36478"
+    },
+    {
+      "url": "https://price-paid-data.publicdata.landregistry.gov.uk/pp-2024.csv",
+      "downloaded_at": "2026-09-14T10:52:00.192291+00:00",
+      "bytes": 162267126,
+      "last_modified": "Fri, 28 Aug 2026 05:12:15 GMT",
+      "etag": "\"667351bce34b131f7dbcd736fea6c649-20\"",
+      "path": "data/pp-2024.csv",
+      "sha256": "887c3d70674b50384b8caefdea936a8336952fbafc27659f33b0679819e9e558"
+    },
+    {
+      "url": "https://price-paid-data.publicdata.landregistry.gov.uk/pp-2025.csv",
+      "downloaded_at": "2026-09-14T10:52:01.218849+00:00",
+      "bytes": 166155231,
+      "last_modified": "Fri, 28 Aug 2026 05:12:17 GMT",
+      "etag": "\"010e4ca5bdff6f48c838e7f66b10cb43-20\"",
+      "path": "data/pp-2025.csv",
+      "sha256": "00031f353d91cec625ad2212dd2f436eb77fc31e0776d5bf17fe4587fc4e0c24"
+    },
+    {
+      "url": "https://open-geography-portalx-ons.hub.arcgis.com/api/download/v1/items/6beafcfd9b9c4c9993a06b6b199d7e6d/shapefile?layers=0",
+      "downloaded_at": "2026-09-14T10:53:32.272868+00:00",
+      "bytes": 40903474,
+      "last_modified": "Thu, 25 Jun 2026 22:58:00 GMT",
+      "etag": "\"0x8DED30D34CC6C34\"",
+      "path": "data/oa21_ew_bgc_v2.zip",
+      "sha256": "d37449f87f69319366121bd90427beb649d1bac2123a218e42e891bb15adf08d"
+    }
+  ],
+  "outputs": {
+    "adjacency.csv": {
+      "bytes": 751153,
+      "sha256": "8cf36f4517212bba3803c232411ef43f9ca7e246be46153c8f4eb1c760ecbadb"
+    },
+    "neighbour_analysis.csv": {
+      "bytes": 2306093,
+      "sha256": "66dadf78bbe8891819580fedc30d26b9e47b03831c3d687517aebbd9c4e6d41d"
+    },
+    "prices_run.json": {
+      "bytes": 213,
+      "sha256": "d09f15fe0bb1146664aced37c1e2b950950abc4b5fe90d87a6173622ffb6b56e"
+    },
+    "sector_wealth.csv": {
+      "bytes": 684482,
+      "sha256": "435e5356b26aace7a0cb2715264fb0917f13f9e00a1c0d6639078ef39ac31a60"
+    },
+    "sectors.geojson": {
+      "bytes": 52698693,
+      "sha256": "672472db6c540ea5d8cba2fefd0ff301b15f3c9ac5950ce82dc15d0ad2078aa2"
+    },
+    "selected.csv": {
+      "bytes": 148963,
+      "sha256": "59260c17b13d91dedf73a2030ce5be257bb01cfeabb2453e5648d9cfc75f8a99"
+    },
+    "selection_run.json": {
+      "bytes": 133,
+      "sha256": "4edf49d0113477a401d190a30f981077c1f49a39590f8188f80611c2b43841fc"
+    }
+  },
+  "versions": {
+    "pandas": "2.3.3",
+    "geopandas": "1.1.4",
+    "shapely": "2.1.2",
+    "networkx": "3.6.1",
+    "pyogrio": "0.13.0",
+    "requests": "2.34.2",
+    "pytest": "9.1.1"
+  },
+  "price_run": {
+    "years": [
+      2023,
+      2024,
+      2025
+    ],
+    "min_sales": 20,
+    "sectors": 8219,
+    "source_rows": 2745967,
+    "eligible_rows": 2266413,
+    "invalid_postcode_rows": 447,
+    "accepted_rows": 2265966
+  },
+  "selection_run": {
+    "layer": 2,
+    "above": 0.2,
+    "min_sales": 1,
+    "min_percentile": 0,
+    "max_percentile": 100,
+    "selected_sectors": 1607
+  },
+  "coverage": {
+    "output_areas": 188880,
+    "repaired_output_area_geometries": 17,
+    "polygon_sectors": 8087,
+    "price_sectors": 8219,
+    "analysis_sectors": 8241,
+    "adjacency_edges": 23318,
+    "layer_2_status": {
+      "ok": 8064,
+      "missing_geometry": 154,
+      "missing_price": 22,
+      "no_priced_neighbours": 1
+    },
+    "selected_low_transaction_count": 55,
+    "selected_at_least_20_sales": 1552
+  },
+  "validation": {
+    "local_tests_passed": 34,
+    "all_exported_polygons_valid": true,
+    "all_neighbourhoods_checked_by_independent_set_expansion": true,
+    "selected_rows_and_completeness_verified": true
+  }
+}

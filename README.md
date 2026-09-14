@@ -73,7 +73,7 @@ The live lookup uses `OA21CD` and `PCDS`; the code also accepts the documented `
 - `output/adjacency.csv`: 23,318 undirected shared-edge connections.
 - `output/neighbour_analysis.csv`: 24,723 rows covering 8,241 sectors at depths 1–3.
 - `output/selected.csv`: **1,607 sectors**, including **55 below 20 sales**; 1,552 have at least 20 sales.
-- `output/prices_run.json` and `output/run_manifest.json`: input counts, parameters, source hashes and validation results.
+- `output/prices_run.json`, `output/selection_run.json` and `output/run_manifest.json`: input counts, parameters, source hashes and validation results.
 
 The 14 September 2026 run read 2,745,967 source rows and retained 2,265,966 transactions across 8,219 observed price sectors. It rejected 447 otherwise eligible rows with invalid/missing postcodes. All 188,880 OAs matched the lookup; 17 invalid OA geometries were repaired. At depth 2, 8,064 sectors have a usable comparison; 154 observed-price sectors lack polygons, 22 polygon sectors lack qualifying sales, and one priced island sector has no priced neighbours. Unavailable comparisons remain flagged in `neighbour_analysis.csv` and cannot enter the selected file.
 

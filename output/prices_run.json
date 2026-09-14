@@ -1,0 +1,13 @@
+{
+  "years": [
+    2023,
+    2024,
+    2025
+  ],
+  "min_sales": 20,
+  "sectors": 8219,
+  "source_rows": 2745967,
+  "eligible_rows": 2266413,
+  "invalid_postcode_rows": 447,
+  "accepted_rows": 2265966
+}
