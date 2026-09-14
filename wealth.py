@@ -221,3 +221,64 @@ def build_adjacency(sectors):
                            "shared_boundary_m": lengths})
     return result.loc[result.shared_boundary_m.gt(0)].sort_values(
         ["sector_a", "sector_b"]).reset_index(drop=True)
+
+
+def analyse_neighbourhoods(prices, sector_names, edges, layers):
+    """Use cumulative shortest-path neighbourhoods, with equal sector weights."""
+    import networkx as nx
+    from statistics import median
+
+    layers = sorted(set(layers))
+    if not layers or min(layers) < 1:
+        raise ValueError("Layers must be positive integers")
+    if prices.sector.duplicated().any():
+        raise ValueError("Duplicate price sectors")
+    geography = set(sector_names)
+    endpoints = set(edges.sector_a) | set(edges.sector_b)
+    if not endpoints <= geography or edges.sector_a.eq(edges.sector_b).any():
+        raise ValueError("Adjacency contains unknown sectors or self-edges")
+    graph = nx.Graph()
+    graph.add_nodes_from(geography)
+    graph.add_edges_from(zip(edges.sector_a, edges.sector_b))
+    all_sectors = sorted(geography | set(prices.sector))
+    values = prices.set_index("sector").reindex(all_sectors)
+    threshold = int(prices.min_sales_threshold.iloc[0])
+    values["transaction_count"] = values.transaction_count.fillna(0).astype(int)
+    values["low_transaction_count"] = values.transaction_count.lt(threshold)
+    medians = values.median_price.dropna().to_dict()
+    if any(p <= 0 or not float('-inf') < p < float('inf') for p in medians.values()):
+        raise ValueError("Observed sector prices must be positive and finite")
+    rows = []
+    for sector, subject in values.iterrows():
+        distances = (nx.single_source_shortest_path_length(graph, sector, cutoff=max(layers))
+                     if sector in graph else {})
+        for layer in layers:
+            neighbours = [s for s, d in distances.items() if 0 < d <= layer]
+            priced = [s for s in neighbours if s in medians]
+            baseline = median([medians[s] for s in priced]) if priced else float("nan")
+            status = ("missing_geometry" if sector not in geography else
+                      "missing_price" if sector not in medians else
+                      "no_priced_neighbours" if not priced else "ok")
+            rows.append({
+                "sector": sector, "layer": layer, "median_price": subject.median_price,
+                "transaction_count": subject.transaction_count, "ew_percentile": subject.ew_percentile,
+                "neighbour_count": len(neighbours), "neighbourhood_median": baseline,
+                "pct_above_neighbourhood": subject.median_price / baseline - 1,
+                "low_transaction_count": subject.low_transaction_count,
+                "min_sales_threshold": threshold, "priced_neighbour_count": len(priced),
+                "low_count_neighbour_count": sum(values.at[s, "low_transaction_count"] for s in priced),
+                "has_geometry": sector in geography, "analysis_status": status,
+            })
+    return pd.DataFrame(rows)
+
+
+def analyse_command(args):
+    import geopandas as gpd
+
+    prices = pd.read_csv(args.output_dir / "sector_wealth.csv")
+    # Read only attributes: the adjacency graph was constructed in the source CRS.
+    names = gpd.read_file(args.output_dir / "sectors.geojson", ignore_geometry=True)["sector"]
+    edges = pd.read_csv(args.output_dir / "adjacency.csv")
+    result = analyse_neighbourhoods(prices, names, edges, args.layers)
+    result.to_csv(args.output_dir / "neighbour_analysis.csv", index=False)
+    print(f"Wrote {len(result):,} sector/layer rows", flush=True)
