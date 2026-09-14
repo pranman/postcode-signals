@@ -192,4 +192,32 @@ def geography_command(args):
     sectors = dissolve_sectors(areas, lookup)
     sectors.to_crs(4326).to_file(args.output_dir / "sectors.geojson", driver="GeoJSON")
     print(f"Wrote {len(sectors):,} sector polygons", flush=True)
+    edges = build_adjacency(sectors)
+    edges.to_csv(args.output_dir / "adjacency.csv", index=False)
+    print(f"Wrote {len(edges):,} adjacency edges", flush=True)
     return sectors
+
+
+def build_adjacency(sectors):
+    """Rook adjacency: disjoint interiors and positive shared boundary length."""
+    import shapely
+
+    if sectors.crs is None or sectors.crs.to_epsg() != 27700:
+        raise ValueError("Adjacency requires EPSG:27700 metre coordinates")
+    if sectors.sector.duplicated().any() or not sectors.geometry.is_valid.all():
+        raise ValueError("Adjacency requires unique sectors and valid polygons")
+    sectors = sectors.sort_values("sector").reset_index(drop=True)
+    geoms = sectors.geometry.array
+    left, right = sectors.sindex.query(geoms, predicate="intersects")
+    keep = left < right
+    left, right = left[keep], right[keep]
+    # DE-9IM: interiors do not intersect and boundaries intersect in a line.
+    edges = shapely.relate_pattern(geoms[left], geoms[right], "F***1****")
+    left, right = left[edges], right[edges]
+    lengths = shapely.length(shapely.intersection(
+        shapely.boundary(geoms[left]), shapely.boundary(geoms[right])))
+    names = sectors.sector.to_numpy()
+    result = pd.DataFrame({"sector_a": names[left], "sector_b": names[right],
+                           "shared_boundary_m": lengths})
+    return result.loc[result.shared_boundary_m.gt(0)].sort_values(
+        ["sector_a", "sector_b"]).reset_index(drop=True)
