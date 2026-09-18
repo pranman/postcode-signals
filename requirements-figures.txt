@@ -1,0 +1,2 @@
+# Optional dependencies for examples/make_figures.py; install alongside requirements.txt.
+matplotlib>=3.9,<4

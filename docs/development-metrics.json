@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "scope": "Original implementation turn only; excludes follow-up questions and public-readiness work",
+  "source": "Allowlisted export from local Codex session metadata; raw transcript not published",
+  "model": "gpt-6-astra",
+  "reasoning_effort": "xhigh",
+  "started_at": "2026-09-14T10:45:20.766Z",
+  "completed_at": "2026-09-14T11:05:01.323Z",
+  "last_usage_recorded_at": "2026-09-14T11:05:01.228Z",
+  "usage": {
+    "input_tokens": 1806093,
+    "cached_input_tokens": 1722880,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 26949,
+    "reasoning_output_tokens": 4486,
+    "total_tokens": 1833042
+  },
+  "interpretation": [
+    "Cached input is included in input_tokens.",
+    "Reasoning output is included in output_tokens.",
+    "total_tokens equals input_tokens plus output_tokens.",
+    "Counters include repeated context; not unique text volume or monetary cost."
+  ],
+  "delivery": {
+    "issues": 7,
+    "commits": 14,
+    "local_tests_passed": 34
+  }
+}

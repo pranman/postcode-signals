@@ -1,0 +1,56 @@
+{
+  "description": "Real layer-2 examples and an explicitly synthetic graph schematic; no basemap or network calls.",
+  "source_files": {
+    "sectors.geojson": {
+      "sha256": "672472db6c540ea5d8cba2fefd0ff301b15f3c9ac5950ce82dc15d0ad2078aa2"
+    },
+    "neighbour_analysis.csv": {
+      "sha256": "66dadf78bbe8891819580fedc30d26b9e47b03831c3d687517aebbd9c4e6d41d"
+    },
+    "adjacency.csv": {
+      "sha256": "8cf36f4517212bba3803c232411ef43f9ca7e246be46153c8f4eb1c760ecbadb"
+    }
+  },
+  "matplotlib_version": "3.11.2",
+  "examples": [
+    {
+      "sector": "SE21 7",
+      "outcome": "QUALIFIES",
+      "layer": 2,
+      "transaction_count": 113,
+      "median_price": 1800000.0,
+      "neighbourhood_median": 509950.0,
+      "pct_above_neighbourhood": 2.5297578193940584,
+      "ew_percentile": 99.43423774181774,
+      "neighbour_count": 24,
+      "priced_neighbour_count": 24,
+      "low_count_neighbour_count": 0
+    },
+    {
+      "sector": "SW3 5",
+      "outcome": "DOES NOT QUALIFY",
+      "layer": 2,
+      "transaction_count": 247,
+      "median_price": 1350000.0,
+      "neighbourhood_median": 1265000.0,
+      "pct_above_neighbourhood": 0.0671936758893281,
+      "ew_percentile": 98.94756053047816,
+      "neighbour_count": 13,
+      "priced_neighbour_count": 13,
+      "low_count_neighbour_count": 0
+    },
+    {
+      "sector": "WC1A 1",
+      "outcome": "EXCLUDED BY SALES FLOOR",
+      "layer": 2,
+      "transaction_count": 17,
+      "median_price": 5625000.0,
+      "neighbourhood_median": 940000.0,
+      "pct_above_neighbourhood": 4.98404255319149,
+      "ew_percentile": 99.95133227886603,
+      "neighbour_count": 22,
+      "priced_neighbour_count": 21,
+      "low_count_neighbour_count": 13
+    }
+  ]
+}

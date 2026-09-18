@@ -1,94 +1,106 @@
-# Postcode-sector relative affluence
+# Postcode Signals
 
-A small Python CLI using residential sale prices as an affluence proxy. The delivered result is **[output/selected.csv](output/selected.csv)**: 2023–2025 sales, more than 20% above the median of sector medians within two graph steps. Low-sale sectors are retained and flagged.
+**Find housing markets that stand out from their surroundings — and see how reliable the comparison is.**
 
-## Run locally
+Postcode Signals turns public house-sale records and geographic boundaries into an explainable area-level dataset for England and Wales. It asks: **which postcode sectors have a median sold-home price more than 20% above nearby sectors?**
 
-Python 3.12 was used. Create and activate a virtual environment, then:
+The result can support geographic campaign experiments, market prioritisation and data analysis. It is a housing-price signal, not a measure of residents' income, net worth or purchasing intent.
 
-```powershell
+**[Explore the example report](docs/examples/area-shortlist.md)** · **[Download selected sectors](output/selected.csv)** · **[Product and architecture decisions](docs/product-decisions.md)** · **[How it was built with agents](docs/agentic-development.md)**
+
+## The delivered result
+
+| September 2026 reference run | Result |
+| --- | ---: |
+| Qualifying residential sales, 2023–2025 | 2,265,966 |
+| Distinct sectors represented | 8,241 |
+| Sectors with a usable two-step comparison | 8,064 (97.9%) |
+| Sectors above the strict 20% local-premium threshold | 1,607 |
+| Candidates remaining with at least 20 sales | 1,552 |
+
+The original delivery retains 55 low-sale candidates with flags. The [decision example](docs/examples/area-shortlist.md) uses a 20-sale floor and exposes sparse neighbours too. These are screening rules, not statistical confidence guarantees. [Coverage and source evidence →](output/run_manifest.json)
+
+## What the maps mean
+
+![Mapped examples of a local premium, high national prices without a local premium, and a sparse-sale candidate](docs/figures/local-price-comparison.png)
+
+The maps distinguish **locally higher prices**, **nationally expensive housing** and **insufficient sales evidence**. The 20-sale floor belongs to the more conservative example shortlist; the original delivery retains sparse observations with flags. [Figure notes and reproduction →](docs/figures/README.md)
+
+## Where it could be useful
+
+| Decision | How to use the output | Evidence still needed |
+| --- | --- | --- |
+| Where to test advertising | Build candidate geographic test and control groups | Permitted targeting geography, data rights and measured incremental response |
+| Which markets to investigate | Compare local premium, national percentile and sales counts | Serviceability, competition, demand and unit economics |
+| What explains local variation | Join sector-level indicators and examine the graph | Property-mix controls, sensitivity checks and current geography |
+
+Commercial activation requires checking upstream data rights and current platform rules. Aggregation alone does not establish permission for every use. See [data terms](DATA_LICENSE.md) and the [experiment design](docs/product-decisions.md).
+
+## Try it without downloading data
+
+Clone the repository and run from its root with Python 3.12:
+
+```console
+python examples/area_shortlist.py --output reports/area-shortlist.md
+python scripts/verify_snapshot.py
+```
+
+Both commands use only the standard library and committed aggregate files. The first writes a readable shortlist report; the second checks the six published data files against their recorded sizes and SHA-256 hashes.
+
+For the full CLI and tests, create a virtual environment and install the recorded dependencies:
+
+```console
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r requirements.lock.txt
 python -m pytest -q
-python wealth.py prices --years 2023 2024 2025 --min-sales 20
-python wealth.py geography
-python wealth.py analyse --layers 1 2 3
-python wealth.py select --layer 2 --above 0.20 --min-sales 1
 ```
 
-The final command deliberately retains all observed qualifying sectors, including those below 20 sales. To require at least 20 sales or restrict national percentiles:
+Tests exercise ingestion, geometry, graph traversal, exact selection boundaries and independent verification of the complete national output. [CI runs on Linux and Windows](https://github.com/pranman/postcode-signals/actions/workflows/tests.yml); tests do not download national data.
 
-```powershell
-python wealth.py select --layer 2 --above 0.20 --min-sales 20
-python wealth.py select --layer 2 --above 0.30 --min-sales 20 --min-percentile 70 --max-percentile 100
+## How the system works
+
+```mermaid
+flowchart LR
+    A["HMLR sales · 2023–2025"] --> B["Validate and aggregate sector prices"]
+    C["ONS Output Areas + sector lookup"] --> D["Dissolve approximate sector polygons"]
+    D --> E["Shared-edge adjacency graph"]
+    B --> F["Compare cumulative graph neighbourhoods"]
+    E --> F
+    F --> G["Select with price and sample-size filters"]
+    G --> H["CSV + decision report + quality flags"]
 ```
 
-Each selection overwrites `output/selected.csv`. `select` defaults to 20 sales; `prices --min-sales` controls flags without discarding values. Percentile bounds are inclusive; `--above` is strict and expressed as a fraction, so 0.20 means 20%. Re-run `analyse` after changing prices or geography, and `select` after changing analysis.
+A small Python CLI keeps the decision inspectable: pandas for statistics, GeoPandas/Shapely for geometry and NetworkX for shortest-path neighbourhoods. There is no hosted service or database to operate. Source downloads are cached locally; compact derived outputs are versioned.
 
-All commands accept `--data-dir` and `--output-dir` after the command name. Geography accepts `--oa-file PATH --lookup-file PATH` for offline inputs. Dependencies from the delivery run are recorded in `requirements.lock.txt`; install that file to reproduce those versions.
+![Shared-edge adjacency, corner exclusion and a cumulative two-step neighbourhood](docs/figures/neighbourhood-rule.png)
 
-## Exact sources
+`local premium = subject median / median(neighbouring sector medians) - 1`
 
-HM Land Registry yearly Price Paid CSVs (no header):
+The neighbourhood includes distinct sectors one or two graph edges away and excludes the subject. Available sector medians receive equal weight; unpriced sectors remain in the graph for traversal.
 
-- [2023](https://price-paid-data.publicdata.landregistry.gov.uk/pp-2023.csv)
-- [2024](https://price-paid-data.publicdata.landregistry.gov.uk/pp-2024.csv)
-- [2025](https://price-paid-data.publicdata.landregistry.gov.uk/pp-2025.csv)
-- [Yearly downloads and conditions](https://www.gov.uk/government/statistical-data-sets/price-paid-data-yearly-file)
-- [Field definitions and limitations](https://www.gov.uk/guidance/about-the-price-paid-data)
+## Rebuild or experiment
 
-Other years use `https://price-paid-data.publicdata.landregistry.gov.uk/pp-{year}.csv`.
+Use a separate output directory to preserve the reference delivery:
 
-ONS Output Areas (December 2021), England and Wales, BGC V2: generalised to 20 metres and clipped to the coastline at mean high water.
+```console
+python wealth.py prices --years 2023 2024 2025 --min-sales 20 --output-dir reports/run
+python wealth.py geography --output-dir reports/run
+python wealth.py analyse --layers 1 2 3 --output-dir reports/run
+python wealth.py select --layer 2 --above 0.20 --min-sales 20 --output-dir reports/run
+```
 
-- [Exact shapefile ZIP download](https://open-geography-portalx-ons.hub.arcgis.com/api/download/v1/items/6beafcfd9b9c4c9993a06b6b199d7e6d/shapefile?layers=0)
-- [Dataset metadata](https://www.arcgis.com/home/item.html?id=6beafcfd9b9c4c9993a06b6b199d7e6d)
-- [Feature service](https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/Output_Areas_2021_EW_BGC_V2/FeatureServer/0)
+Use `--min-sales 1` on the last command to reproduce the original selection policy. The geography stage needs national downloads and local processing; it is not needed to read the CSVs. Publisher revisions can change a fresh rebuild. The original `run_manifest.json` is a fixed delivery record and is **not regenerated by these commands**. See [methodology, exact sources and reproduction limits](docs/methodology.md).
 
-ONS Output Area (2021) to Postcode Sector (May 2021) best-fit lookup, England and Wales:
+## Built through an evidence-led agent workflow
 
-- [Exact CSV download](https://open-geography-portalx-ons.hub.arcgis.com/api/download/v1/items/cf826bd3d29947ef9dcda7cd9753f7a8/csv?layers=0)
-- [Dataset metadata](https://www.arcgis.com/home/item.html?id=cf826bd3d29947ef9dcda7cd9753f7a8)
-- [Feature service](https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/OA21_PCDS21_EW_LU/FeatureServer/0)
+The initial delivery used seven behaviour-sized issues, separate implementation and validation commits, local tests and a national run. The build recorded **GPT-6 Astra with `xhigh` reasoning**, **14 commits** and **34 passing tests at delivery**. The current repository adds parallel review, regression fixes, CI and a reproducible decision example.
 
-The live lookup uses `OA21CD` and `PCDS`; the code also accepts the documented `PCDS21CD` name. The lookup allocates OAs using population-weighted centroids. Downloads are cached in `data/` with URL, retrieval time, size and HTTP metadata. Complete cached files are reused without a network request. Incomplete downloads never replace the cache. To refresh a source, remove its cached file and rerun the relevant command. Historic price files are revised by the publisher; a later fresh download can change results.
+[The development case study](docs/agentic-development.md) connects requirements to design tradeoffs, verification and the issue/commit trail. [Exported usage counters](docs/development-metrics.json) record **1,833,042 tokens** for the original implementation turn, including **1,722,880 cached input tokens**. These counters are not unique text volume, cost or a productivity benchmark.
 
-## Methodology and columns
+## Scope and reuse
 
-1. Pool transactions from the requested years, using the transfer date in each row. Keep Category A and property types D, S, T and F. Exclude O, deleted records, nonpositive/nonfinite prices, invalid dates and missing/invalid postcodes. Yearly snapshots are expected; monthly change files are not supported. Full postcodes are validated with UK postcode regex forms and restricted letters, then named outward-code and inward-digit groups produce sectors such as `SW1A 2`. There is no postcode-position slicing.
-2. Group by sector. `transaction_count`, `median_price`, `mean_price`, `p25_price` and `p75_price` use all retained transactions, in nominal pounds, across the pooled years. Quartiles use pandas linear interpolation. No inflation, property mix, floor area or tenure adjustment is applied. Median sale price is the sole wealth metric; it describes sold housing, not household income or net worth.
-3. `ew_percentile = 100 * average_rank(sector median) / number_of_observed_sectors`. Every sector with a valid observed price has equal weight, including flagged sectors and those without polygons. Tied medians share the average rank. The top unique median is 100; the minimum rank is greater than zero.
-4. Validate unique, complete OA codes across the polygon and lookup files. Repair invalid geometries with Shapely `make_valid`, then dissolve by sector in EPSG:27700 (British National Grid). Export polygons as WGS84 GeoJSON. These are **approximate analysis polygons, not authoritative Royal Mail postcode boundaries**. A sector can have multiple disconnected pieces.
-5. Use a spatial index to find polygon pairs. Require disjoint interiors and a shared boundary line with positive length (DE-9IM `F***1****`). Point contacts, overlaps and self-edges do not qualify. No buffering or gap bridging is applied. `adjacency.csv` stores each undirected pair once as `sector_a,sector_b,shared_boundary_m`. Edge lengths are measured in metres before GeoJSON reprojection. An edge is geographical contact, not a road/ferry connection.
-6. For each sector and layer, collect every distinct sector with shortest graph distance from 1 through that layer. Exclude the subject. Take the unweighted median of available neighbouring sector medians; low-sale observed medians remain included. Calculate `pct_above_neighbourhood = median_price / neighbourhood_median - 1`.
-7. `neighbour_count` includes all graph neighbours at the requested cumulative depth. `priced_neighbour_count` counts those contributing a median; `low_count_neighbour_count` reports contributors below the price-run sales threshold. Unpriced nodes remain available for traversing the graph. Missing values are never imputed. No usable neighbours gives blank neighbourhood median and premium.
-8. `low_transaction_count` flags a count below `min_sales_threshold` (20 for this run). Analysis covers the union of observed price sectors and polygon sectors. `has_geometry` and `analysis_status` expose unavailable comparisons: `missing_geometry`, `missing_price` or `no_priced_neighbours`; otherwise `ok`. A 2021 best-fit lookup cannot represent every sector in later sales data. A sector with no sales has count zero and blank prices/percentile.
+Prices describe sold housing, with no inflation, property-mix, floor-area or tenure adjustment. Approximate 2021 polygons do not cover every later postcode sector. Missing comparisons remain visible and cannot enter the shortlist. Commercial impact and individual wealth are unmeasured.
 
-## Outputs and delivered coverage
-
-- `data/`: cached source files and download metadata (kept local).
-- `output/sector_wealth.csv`: observed sector statistics and low-sale flags.
-- `output/sectors.geojson`: 8,087 dissolved analysis polygons (generated locally, excluded from Git because of size).
-- `output/adjacency.csv`: 23,318 undirected shared-edge connections.
-- `output/neighbour_analysis.csv`: 24,723 rows covering 8,241 sectors at depths 1–3.
-- `output/selected.csv`: **1,607 sectors**, including **55 below 20 sales**; 1,552 have at least 20 sales.
-- `output/prices_run.json`, `output/selection_run.json` and `output/run_manifest.json`: input counts, parameters, source hashes and validation results.
-
-The 14 September 2026 run read 2,745,967 source rows and retained 2,265,966 transactions across 8,219 observed price sectors. It rejected 447 otherwise eligible rows with invalid/missing postcodes. All 188,880 OAs matched the lookup; 17 invalid OA geometries were repaired. At depth 2, 8,064 sectors have a usable comparison; 154 observed-price sectors lack polygons, 22 polygon sectors lack qualifying sales, and one priced island sector has no priced neighbours. Unavailable comparisons remain flagged in `neighbour_analysis.csv` and cannot enter the selected file.
-
-## Attribution and reuse
-
-Contains HM Land Registry data © Crown copyright and database right 2021. This data is licensed under the Open Government Licence v3.0.
-
-Source: Office for National Statistics licensed under the Open Government Licence v.3.0.
-
-Contains OS data © Crown copyright and database right 2026.
-
-Contains Royal Mail data © Royal Mail copyright and database right 2026.
-
-Retain attribution when sharing derived results. See the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/), [ONS geographical licences](https://www.ons.gov.uk/methodology/geography/licences) and [HMLR use conditions](https://www.gov.uk/government/statistical-data-sets/price-paid-data-yearly-file). HMLR's OGL does not license all third-party address rights: the published conditions permit personal/noncommercial address use and display for residential property price information services; other address uses require the rights holders' permission. The outputs contain sector-level statistics rather than individual property addresses.
-
-## Issue-led development
-
-[1: ingestion](https://github.com/pranman/postcodesbywealth/issues/1), [2: statistics](https://github.com/pranman/postcodesbywealth/issues/2), [3: polygons](https://github.com/pranman/postcodesbywealth/issues/3), [4: adjacency](https://github.com/pranman/postcodesbywealth/issues/4), [5: neighbourhoods](https://github.com/pranman/postcodesbywealth/issues/5), [6: CLI and selection](https://github.com/pranman/postcodesbywealth/issues/6), [7: national delivery](https://github.com/pranman/postcodesbywealth/issues/7). Each issue has separate implementation and validation/delivery commits, each pushed immediately. Tests run locally; no database, service or CI infrastructure is required.
+Original software and documentation: [MIT](LICENSE). Data and derived figures: [upstream attribution and terms](DATA_LICENSE.md). [Contributing](CONTRIBUTING.md) · [Security reporting](SECURITY.md) · [Engineering backlog](https://github.com/pranman/postcode-signals/issues)
