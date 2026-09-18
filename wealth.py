@@ -1,10 +1,12 @@
 """Relative postcode-sector affluence from residential sale prices."""
 
 import argparse
+import hashlib
 import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import pandas as pd
 import requests
@@ -37,7 +39,20 @@ def postcode_sector(value):
 def download(url, path):
     """Cache complete downloads atomically, with retries and source metadata."""
     path = Path(path)
+    metadata_path = path.with_suffix(path.suffix + ".json")
     if path.exists() and path.stat().st_size:
+        # Legacy/manual caches without metadata remain valid offline inputs.
+        # Refuse a changed recorded source instead of silently mixing snapshots.
+        if metadata_path.exists():
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            if (not isinstance(metadata, dict) or metadata.get("url") != url
+                    or metadata.get("bytes") != path.stat().st_size):
+                raise ValueError(f"Cached source metadata mismatch: {path}; remove the cached file and retry")
+            if "sha256" in metadata:
+                with path.open("rb") as handle:
+                    actual_hash = hashlib.file_digest(handle, "sha256").hexdigest()
+                if actual_hash != metadata["sha256"]:
+                    raise ValueError(f"Cached source checksum mismatch: {path}; remove the cached file and retry")
         print(f"Using cached {path}", flush=True)
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -53,20 +68,26 @@ def download(url, path):
             if response.status_code != 200:
                 raise ValueError(f"Download is not ready: HTTP {response.status_code}: {url}")
             content_type = response.headers.get("Content-Type", "")
-            if "text/html" in content_type or "application/json" in content_type:
+            if "text/html" in content_type.lower() or "application/json" in content_type.lower():
                 raise ValueError(f"Expected a data file, received {content_type}: {url}")
+            digest = hashlib.sha256()
             with part.open("wb") as handle:
                 for chunk in response.iter_content(1024 * 1024):
                     handle.write(chunk)
+                    digest.update(chunk)
             expected = response.headers.get("Content-Length")
             if not part.stat().st_size or (expected and not response.headers.get("Content-Encoding")
                                           and part.stat().st_size != int(expected)):
                 raise ValueError(f"Incomplete download: {url}")
             part.replace(path)
-            path.with_suffix(path.suffix + ".json").write_text(json.dumps({
-                "url": url, "resolved_url": response.url,
+            # Redirect targets can contain short-lived signed access tokens.
+            resolved = urlsplit(response.url)
+            public_resolved_url = urlunsplit((resolved.scheme, resolved.netloc, resolved.path, "", ""))
+            metadata_path.write_text(json.dumps({
+                "url": url, "resolved_url": public_resolved_url,
                 "downloaded_at": datetime.now(timezone.utc).isoformat(),
                 "bytes": path.stat().st_size,
+                "sha256": digest.hexdigest(),
                 "last_modified": response.headers.get("Last-Modified"),
                 "etag": response.headers.get("ETag"),
             }, indent=2), encoding="utf-8")
@@ -230,8 +251,14 @@ def analyse_neighbourhoods(prices, sector_names, edges, layers):
     layers = sorted(set(layers))
     if not layers or min(layers) < 1:
         raise ValueError("Layers must be positive integers")
+    if prices.empty:
+        raise ValueError("No price sectors available for analysis")
     if prices.sector.duplicated().any():
         raise ValueError("Duplicate price sectors")
+    thresholds = pd.to_numeric(prices.min_sales_threshold, errors="coerce")
+    if (thresholds.isna().any() or thresholds.nunique() != 1
+            or not thresholds.gt(0).all() or not thresholds.mod(1).eq(0).all()):
+        raise ValueError("Price sectors must share one positive integer min_sales_threshold")
     geography = set(sector_names)
     endpoints = set(edges.sector_a) | set(edges.sector_b)
     if not endpoints <= geography or edges.sector_a.eq(edges.sector_b).any():
@@ -241,7 +268,7 @@ def analyse_neighbourhoods(prices, sector_names, edges, layers):
     graph.add_edges_from(zip(edges.sector_a, edges.sector_b))
     all_sectors = sorted(geography | set(prices.sector))
     values = prices.set_index("sector").reindex(all_sectors)
-    threshold = int(prices.min_sales_threshold.iloc[0])
+    threshold = int(thresholds.iloc[0])
     values["transaction_count"] = values.transaction_count.fillna(0).astype(int)
     values["low_transaction_count"] = values.transaction_count.lt(threshold)
     medians = values.median_price.dropna().to_dict()

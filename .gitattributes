@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.zip binary
+
+# Preserve the delivered bytes recorded by output/run_manifest.json.
+output/*.csv -text
+output/prices_run.json -text
+output/selection_run.json -text

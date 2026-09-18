@@ -48,3 +48,18 @@ def test_graph_validation():
     with pytest.raises(ValueError, match="unknown"):
         wealth.analyse_neighbourhoods(fixture_prices(), ["A"],
                                      pd.DataFrame({"sector_a": ["A"], "sector_b": ["B"]}), [1])
+
+
+@pytest.mark.parametrize("threshold", [3, 0, 1.5, float("nan"), float("inf")])
+def test_analysis_rejects_mixed_or_invalid_price_thresholds(threshold):
+    prices = fixture_prices().astype({"min_sales_threshold": float})
+    prices.loc[0, "min_sales_threshold"] = threshold
+    edges = pd.DataFrame({"sector_a": ["A"], "sector_b": ["B"]})
+    with pytest.raises(ValueError, match="one positive integer min_sales_threshold"):
+        wealth.analyse_neighbourhoods(prices, ["A", "B"], edges, [1])
+
+
+def test_analysis_rejects_empty_prices():
+    edges = pd.DataFrame({"sector_a": [], "sector_b": []})
+    with pytest.raises(ValueError, match="No price sectors"):
+        wealth.analyse_neighbourhoods(fixture_prices().iloc[:0], ["A"], edges, [1])

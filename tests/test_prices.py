@@ -1,4 +1,6 @@
 import csv
+import hashlib
+import json
 
 import pandas as pd
 import pytest
@@ -85,3 +87,61 @@ def test_reject_empty_eligible_sales(tmp_path):
     write_ppd(path, [{"category": "B"}])
     with pytest.raises(ValueError, match="No qualifying"):
         wealth.read_transactions([path], [2023])
+
+
+def test_download_records_checksum_and_removes_signed_redirect_query(tmp_path, monkeypatch):
+    payload = b"complete data"
+    source_url = "https://example.test/source.csv"
+
+    class Response:
+        status_code = 200
+        headers = {"Content-Length": str(len(payload)), "Content-Type": "text/csv"}
+        url = "https://cdn.example.test/export.csv?sig=secret&expires=123#token"
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def raise_for_status(self): pass
+        def iter_content(self, size):
+            yield payload[:4]
+            yield payload[4:]
+
+    monkeypatch.setattr(wealth.requests.Session, "get", lambda *a, **k: Response())
+    path = tmp_path / "source.csv"
+    wealth.download(source_url, path)
+    metadata = json.loads(path.with_suffix(".csv.json").read_text())
+    assert path.read_bytes() == payload
+    assert metadata["sha256"] == hashlib.sha256(payload).hexdigest()
+    assert metadata["url"] == source_url
+    assert metadata["resolved_url"] == "https://cdn.example.test/export.csv"
+    assert metadata["bytes"] == len(payload)
+    assert not path.with_suffix(".csv.part").exists()
+    monkeypatch.setattr(wealth.requests, "Session", lambda: pytest.fail("network called"))
+    assert wealth.download(source_url, path) == path
+
+    # Equal length corruption evades the older size-only check.
+    path.write_bytes(b"different data"[:len(payload)])
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        wealth.download(source_url, path)
+
+
+@pytest.mark.parametrize("metadata", [
+    {"url": "https://other.test/data", "bytes": 6},
+    {"url": "https://example.test/data", "bytes": 100},
+    [],
+])
+def test_cache_rejects_mismatched_source_metadata(tmp_path, monkeypatch, metadata):
+    path = tmp_path / "source.csv"
+    path.write_text("cached", encoding="utf-8")
+    path.with_suffix(".csv.json").write_text(json.dumps(metadata), encoding="utf-8")
+    monkeypatch.setattr(wealth.requests, "Session", lambda: pytest.fail("network called"))
+    with pytest.raises(ValueError, match="metadata mismatch"):
+        wealth.download("https://example.test/data", path)
+
+
+def test_legacy_cache_metadata_still_works_offline(tmp_path, monkeypatch):
+    path = tmp_path / "source.csv"
+    path.write_text("cached", encoding="utf-8")
+    path.with_suffix(".csv.json").write_text(json.dumps({
+        "url": "https://example.test/data", "bytes": 6,
+    }), encoding="utf-8")
+    monkeypatch.setattr(wealth.requests, "Session", lambda: pytest.fail("network called"))
+    assert wealth.download("https://example.test/data", path) == path

@@ -6,3 +6,9 @@ output/sectors.geojson
 output/sectors.gpkg
 *.part
 .work/
+reports/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
