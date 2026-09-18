@@ -6,9 +6,9 @@ The maps illustrate the more conservative example shortlist using actual deliver
 
 | Example | Subject median | Local baseline | Local premium | Sales | E&W price percentile | Outcome |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| SE21 7 | Â£1,800,000 | Â£509,950 | +253.0% | 113 | 99.43 | Qualifies |
-| SW3 5 | Â£1,350,000 | Â£1,265,000 | +6.7% | 247 | 98.95 | High nationally, but below the local-premium threshold |
-| WC1A 1 | Â£5,625,000 | Â£940,000 | +498.4% | 17 | 99.95 | Excluded by the 20-sale floor |
+| SE21 7 | £1,800,000 | £509,950 | +253.0% | 113 | 99.43 | Qualifies |
+| SW3 5 | £1,350,000 | £1,265,000 | +6.7% | 247 | 98.95 | High nationally, but below the local-premium threshold |
+| WC1A 1 | £5,625,000 | £940,000 | +498.4% | 17 | 99.95 | Excluded by the 20-sale floor |
 
 The sparse example is included to explain an exclusion; it is not a shortlisted recommendation. These deliberately contrasting cases explain the rule and are not a representative sample of the full dataset. The original delivered selection allowed one sale; the maps illustrate the stricter 20-sale shortlist used in the [offline example report](../examples/area-shortlist.md).
 
@@ -50,14 +50,14 @@ Outputs are `local-price-comparison.png`, `neighbourhood-rule.png` and `figure-d
 
 ## Sources and attribution
 
-The real maps use the delivered 2023â€“2025 HM Land Registry sales aggregates and 2021 ONS geography. The synthetic schematic uses invented shapes and prices.
+The real maps use the delivered 2023–2025 HM Land Registry sales aggregates and 2021 ONS geography. The synthetic schematic uses invented shapes and prices.
 
-Contains HM Land Registry data Â© Crown copyright and database right 2021. This data is licensed under the Open Government Licence v3.0.
+Contains HM Land Registry data © Crown copyright and database right 2021. This data is licensed under the Open Government Licence v3.0.
 
 Source: Office for National Statistics licensed under the Open Government Licence v.3.0.
 
-Contains OS data Â© Crown copyright and database right 2026.
+Contains OS data © Crown copyright and database right 2026.
 
-Contains Royal Mail data Â© Royal Mail copyright and database right 2026.
+Contains Royal Mail data © Royal Mail copyright and database right 2026.
 
 See the [methodology and source links](../methodology.md) for full source definitions, limitations and reuse conditions. Retain attribution when reusing the figures.

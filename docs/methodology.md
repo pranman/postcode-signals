@@ -1,6 +1,6 @@
 # Methodology and reproducibility
 
-A small Python CLI using residential sale prices as an affluence proxy. The delivered result is **[output/selected.csv](../output/selected.csv)**: 2023â€“2025 sales, more than 20% above the median of sector medians within two graph steps. Low-sale sectors are retained and flagged.
+A small Python CLI using residential sale prices as an affluence proxy. The delivered result is **[output/selected.csv](../output/selected.csv)**: 2023–2025 sales, more than 20% above the median of sector medians within two graph steps. Low-sale sectors are retained and flagged.
 
 ## Run locally
 
@@ -71,7 +71,7 @@ The live lookup uses `OA21CD` and `PCDS`; the code also accepts the documented `
 - `output/sector_wealth.csv`: observed sector statistics and low-sale flags.
 - `output/sectors.geojson`: 8,087 dissolved analysis polygons (generated locally, excluded from Git because of size).
 - `output/adjacency.csv`: 23,318 undirected shared-edge connections.
-- `output/neighbour_analysis.csv`: 24,723 rows covering 8,241 sectors at depths 1â€“3.
+- `output/neighbour_analysis.csv`: 24,723 rows covering 8,241 sectors at depths 1–3.
 - `output/selected.csv`: **1,607 sectors**, including **55 below 20 sales**; 1,552 have at least 20 sales.
 - `output/prices_run.json`, `output/selection_run.json` and `output/run_manifest.json`: input counts, parameters, source hashes and validation results.
 

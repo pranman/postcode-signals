@@ -40,6 +40,6 @@ Twenty sales is an illustrative screening threshold, not a confidence interval. 
 
 ## Boundaries and next investment
 
-The data covers qualifying sales in England and Wales, not the whole UK. Pooled 2023â€“2025 nominal prices are not adjusted for inflation, property type, floor area or tenure. The 2021 geography introduces a visible coverage gap. Missing data is not imputed. A sector-level average must not be used to assign wealth or sensitive traits to residents, or determine an individual's eligibility for opportunities.
+The data covers qualifying sales in England and Wales, not the whole UK. Pooled 2023–2025 nominal prices are not adjusted for inflation, property type, floor area or tenure. The 2021 geography introduces a visible coverage gap. Missing data is not imputed. A sector-level average must not be used to assign wealth or sensitive traits to residents, or determine an individual's eligibility for opportunities.
 
 The next useful investments are sensitivity analysis, current-geography coverage and automatic run lineage. A user interface should follow evidence of repeated exploration needs; commercial rollout should follow a measured pilot. See [automatic run lineage (#10)](https://github.com/pranman/postcode-signals/issues/10) and [sensitivity and geography validation (#11)](https://github.com/pranman/postcode-signals/issues/11).
